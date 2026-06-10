@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Epic Prioritizer | VINCUE</title>
+<style>
+:root {
+  --bg: #f4f5f9;
+  --surface: #ffffff;
+  --surface2: #f0f1f6;
+  --border: #dde0ed;
+  --text: #1a1d2e;
+  --dim: #6b7280;
+  --accent: #6366f1;
+  --green: #16a34a;
+  --yellow: #d97706;
+  --orange: #ea580c;
+  --red: #dc2626;
+  --sky: #0284c7;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Header */
+header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.logo { font-size: 15px; font-weight: 700; flex: 1; }
+.logo span { color: var(--dim); font-weight: 400; font-size: 13px; margin-left: 8px; }
+.btn { padding: 6px 13px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: #5558e8; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: var(--dim); border-color: var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: var(--dim); }
+
+/* Config */
+#cfg { background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 20px; display: none; align-items: center; gap: 10px; flex-shrink: 0; }
+#cfg label { font-size: 12px; color: var(--dim); }
+#cfg input { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 5px 10px; border-radius: 6px; font-size: 12px; width: 380px; font-family: monospace; }
+
+/* Status */
+#status { padding: 5px 20px; font-size: 11px; color: var(--dim); background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; min-height: 24px; }
+
+/* Layout */
+.body { display: flex; flex: 1; min-height: 0; }
+
+/* Canvas side */
+.canvas-side { flex: 1; display: flex; flex-direction: column; padding: 14px 14px 0 14px; min-width: 0; }
+.section-label { font-size: 11px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+.canvas-wrap { flex: 1; display: flex; gap: 6px; min-height: 0; }
+
+/* Y axis */
+.y-axis { display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 4px 0; width: 22px; flex-shrink: 0; }
+.y-axis-label { font-size: 10px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.07em; writing-mode: vertical-rl; transform: rotate(180deg); }
+.axis-arrow { font-size: 9px; color: var(--border); }
+
+/* Canvas */
+.canvas-col { flex: 1; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.canvas { flex: 1; position: relative; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface); overflow: hidden; transition: border-color 0.15s; }
+.canvas.over { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* Grid lines */
+.grid-h { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--border); pointer-events: none; }
+.grid-v { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--border); pointer-events: none; }
+
+/* Corner hints */
+.hint { position: absolute; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); opacity: 0.35; padding: 8px 10px; pointer-events: none; line-height: 1.5; }
+.hint-tl { top: 0; left: 0; text-align: left; }
+.hint-tr { top: 0; right: 0; text-align: right; }
+.hint-bl { bottom: 0; left: 0; text-align: left; }
+.hint-br { bottom: 0; right: 0; text-align: right; }
+
+/* X axis */
+.x-axis { display: flex; justify-content: space-between; height: 18px; padding: 0 2px; align-items: center; flex-shrink: 0; }
+.x-axis-label { font-size: 10px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.07em; }
+
+/* Cards on canvas */
+.canvas .epic-card { position: absolute; transform: translate(-50%, -50%); width: 160px; z-index: 1; }
+.canvas .epic-card:hover { z-index: 10; }
+
+/* Cards */
+.epic-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: 6px; padding: 5px 8px; cursor: grab; user-select: none; transition: border-color 0.15s, box-shadow 0.15s; width: 160px; }
+.epic-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.epic-card.dragging { opacity: 0.35; cursor: grabbing; }
+.card-title { font-size: 11px; font-weight: 500; line-height: 1.3; margin-bottom: 3px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-foot { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; overflow: hidden; }
+.badge { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; }
+.sz-xs,.sz-s { background: rgba(22,163,74,0.12); color: var(--green); }
+.sz-m { background: rgba(217,119,6,0.12); color: var(--yellow); }
+.sz-l { background: rgba(234,88,12,0.12); color: var(--orange); }
+.sz-xl { background: rgba(220,38,38,0.12); color: var(--red); }
+.sz-undefined { background: rgba(107,114,128,0.12); color: var(--dim); }
+.active-badge { background: rgba(2,132,199,0.12); color: var(--sky); font-weight: 700; }
+.proj-badge { font-size: 9px; color: var(--dim); }
+.count-badge { font-size: 9px; color: var(--dim); }
+
+/* Sidebar */
+.sidebar { width: 256px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+.sb-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sb-title { font-size: 13px; font-weight: 600; }
+.sb-sub { font-size: 11px; color: var(--dim); margin-top: 2px; }
+.rank-list { flex: 1; overflow-y: auto; }
+.rank-item { display: flex; align-items: flex-start; padding: 8px 14px; gap: 10px; border-bottom: 1px solid var(--border); }
+.rank-num { font-size: 13px; font-weight: 700; color: var(--dim); width: 18px; text-align: right; flex-shrink: 0; margin-top: 1px; }
+.rank-num.hi { color: var(--accent); }
+.rank-info { flex: 1; min-width: 0; }
+.rank-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-badges { display: flex; gap: 5px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+.pos-tag { font-size: 9px; font-weight: 600; padding: 1px 5px; border-radius: 3px; }
+.pos-hi-lo { background: rgba(22,163,74,0.12); color: var(--green); }
+.pos-hi-hi { background: rgba(99,102,241,0.12); color: var(--accent); }
+.pos-lo-lo { background: rgba(107,114,128,0.12); color: var(--dim); }
+.pos-lo-hi { background: rgba(220,38,38,0.12); color: var(--red); }
+.pos-none { background: rgba(107,114,128,0.08); color: var(--dim); }
+.sb-foot { padding: 10px 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
+
+/* Pool */
+.pool-wrap { padding: 10px 14px 12px; flex-shrink: 0; border-top: 1px solid var(--border); background: var(--surface); }
+.pool-label { font-size: 11px; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+.pool { display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px; padding: 6px; border-radius: 8px; border: 1.5px dashed var(--border); transition: border-color 0.15s; background: var(--bg); }
+.pool.over { border-color: var(--accent); }
+.pool .epic-card { width: 160px; }
+
+/* Tooltip */
+#tooltip { position: fixed; z-index: 1000; background: var(--text); color: #fff; border-radius: 7px; padding: 8px 11px; font-size: 11px; line-height: 1.5; max-width: 240px; pointer-events: none; opacity: 0; transition: opacity 0.12s; box-shadow: 0 4px 16px rgba(0,0,0,0.18); }
+#tooltip.show { opacity: 1; }
+#tooltip .tt-title { font-weight: 600; margin-bottom: 5px; white-space: normal; }
+#tooltip .tt-row { color: rgba(255,255,255,0.7); display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Utils */
+.spinner { display: inline-block; width: 11px; height: 11px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty { display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 12px; width: 100%; padding: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Epic Prioritizer <span>VINCUE Investment Alignment</span></div>
+  <button class="btn btn-ghost" onclick="toggleCfg()">⚙ Config</button>
+  <button class="btn btn-ghost" onclick="saveSession()">Save Session</button>
+  <button class="btn btn-ghost" onclick="copyRanking()">Copy Ranking</button>
+  <button class="btn btn-primary" id="load-btn" onclick="loadEpics()">Load Epics</button>
+</header>
+
+<div id="cfg">
+  <label>ADO PAT:</label>
+  <input type="password" id="pat-input" placeholder="Personal Access Token" />
+  <button class="btn btn-ghost" onclick="loadEpics()">Apply & Reload</button>
+</div>
+
+<div id="status">Ready — click Load Epics to pull from Azure DevOps.</div>
+<div id="tooltip"><div class="tt-title"></div><div class="tt-row"></div></div>
+
+<div class="body">
+  <div class="canvas-side">
+    <div class="section-label">Investment Canvas — drag epics to position</div>
+    <div class="canvas-wrap">
+      <div class="y-axis">
+        <div class="axis-arrow">▲</div>
+        <div class="y-axis-label">Impact</div>
+        <div class="axis-arrow">▼</div>
+      </div>
+      <div class="canvas-col">
+        <div class="canvas" id="canvas"
+             ondragover="onOver(event)"
+             ondrop="onDropCanvas(event)"
+             ondragleave="onLeave(event)">
+          <div class="grid-h"></div>
+          <div class="grid-v"></div>
+          <div class="hint hint-tl">High Impact<br>Low Effort</div>
+          <div class="hint hint-tr">High Impact<br>High Effort</div>
+          <div class="hint hint-bl">Low Impact<br>Low Effort</div>
+          <div class="hint hint-br">Low Impact<br>High Effort</div>
+        </div>
+        <div class="x-axis">
+          <div class="x-axis-label">◀ Low Effort</div>
+          <div class="x-axis-label">— Effort →</div>
+          <div class="x-axis-label">High Effort ▶</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sb-head">
+      <div class="sb-title">Stack Rank</div>
+      <div class="sb-sub">Ranked by impact, adjusted for effort</div>
+    </div>
+    <div class="rank-list" id="rank-list">
+      <div class="empty" style="padding:24px;flex-direction:column;gap:4px">
+        <span>Place epics on the canvas</span>
+        <span>to build the rank.</span>
+      </div>
+    </div>
+    <div class="sb-foot">
+      <button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="copyRanking()">Copy Stack Rank to Clipboard</button>
+    </div>
+  </div>
+</div>
+
+<div class="pool-wrap">
+  <div class="pool-label">Unplaced Epics (<span id="pool-count">0</span>)</div>
+  <div class="pool" id="pool"
+       ondragover="onOver(event)"
+       ondrop="onDropPool(event)"
+       ondragleave="onLeave(event)">
+    <div class="empty">Load epics to get started.</div>
+  </div>
+</div>
+
+<script>
+const DEFAULT_PAT = 'CVJUkWKCT6lJ2l7fEDcPDlCaZaR6KXHWlFv6pMj2a1a7pW6BJMytJQQJ99CDACAAAAAV3llrAAASAZDO4Wb3';
+const PROJECTS = ['VINCUE-Desktop', 'VINCUE-Mobile'];
+const ORG = 'https://dev.azure.com/vincue';
+
+let epics = [];
+let dragging = null;
+let dragOffset = { x: 0, y: 0 };
+
+// ── Config ──────────────────────────────────────────────
+function toggleCfg() {
+  const el = document.getElementById('cfg');
+  el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
+  if (el.style.display === 'flex') document.getElementById('pat-input').value = getPAT();
+}
+function getPAT() {
+  const v = document.getElementById('pat-input').value.trim();
+  if (v) { localStorage.setItem('vincue_pat', v); return v; }
+  return localStorage.getItem('vincue_pat') || DEFAULT_PAT;
+}
+function auth(pat) { return 'Basic ' + btoa(':' + pat); }
+function setStatus(msg, spin) {
+  document.getElementById('status').innerHTML = spin
+    ? `<span class="spinner"></span>&nbsp;${msg}` : msg;
+}
+
+// ── ADO Fetch ───────────────────────────────────────────
+async function loadEpics() {
+  const btn = document.getElementById('load-btn');
+  btn.disabled = true; btn.textContent = 'Loading…';
+  const a = auth(getPAT());
+  epics = [];
+
+  try {
+    for (const proj of PROJECTS) {
+      setStatus(`Fetching epics from ${proj}…`, true);
+      const ids = await getEpicIds(proj, a);
+      if (!ids.length) continue;
+      const batch = await getEpicDetails(proj, ids, a);
+      epics.push(...batch);
+    }
+
+    setStatus(`Calculating sizes for ${epics.length} epics…`, true);
+    await Promise.all(epics.map(e => loadChildCount(e, a)));
+    epics.forEach(e => { e.tshirt = tshirt(e.childCount); e.placed = false; e.x = 0.5; e.y = 0.5; });
+
+    // Active epics: scatter into upper-left area
+    const active = epics.filter(e => e.hasActive);
+    active.forEach((e, i) => {
+      e.placed = true;
+      e.x = Math.min(0.42, 0.08 + (i % 4) * 0.11);
+      e.y = Math.max(0.58, 0.92 - Math.floor(i / 4) * 0.14);
+    });
+
+    // Restore saved positions (overrides defaults)
+    const saved = localStorage.getItem('epic_canvas');
+    if (saved) {
+      const pos = JSON.parse(saved);
+      epics.forEach(e => {
+        if (pos[e.uid]) { e.x = pos[e.uid].x; e.y = pos[e.uid].y; e.placed = true; }
+      });
+    }
+
+    render();
+    setStatus(`${epics.length} epics loaded — ${active.length} active item(s) pre-positioned. Drag to place remaining.`);
+  } catch (err) {
+    setStatus(`Error: ${err.message} — check your PAT in Config.`);
+    console.error(err);
+  }
+  btn.disabled = false; btn.textContent = 'Reload Epics';
+}
+
+async function getEpicIds(proj, a) {
+  const wiql = { query: `SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = "${proj}" AND [System.WorkItemType] = "Epic" AND [System.State] NOT IN ("Closed","Removed") ORDER BY [System.Title]` };
+  const res = await fetch(`${ORG}/${encodeURIComponent(proj)}/_apis/wit/wiql?api-version=7.1`, {
+    method: 'POST', headers: { Authorization: a, 'Content-Type': 'application/json' }, body: JSON.stringify(wiql)
+  });
+  if (!res.ok) throw new Error(`${proj}: ${res.status} ${res.statusText}`);
+  return (await res.json()).workItems.map(w => w.id);
+}
+
+async function getEpicDetails(proj, ids, a) {
+  const res = await fetch(`${ORG}/${encodeURIComponent(proj)}/_apis/wit/workitemsbatch?api-version=7.1`, {
+    method: 'POST', headers: { Authorization: a, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: ids.slice(0, 200), fields: ['System.Id','System.Title'] })
+  });
+  if (!res.ok) throw new Error(`Batch ${proj}: ${res.status}`);
+  return (await res.json()).value.map(wi => ({
+    uid: `${proj}-${wi.fields['System.Id']}`,
+    adoId: wi.fields['System.Id'],
+    title: wi.fields['System.Title'],
+    proj: proj.replace('VINCUE-', ''),
+    childCount: 0, tshirt: 'M', hasActive: false,
+    placed: false, x: 0.5, y: 0.5
+  }));
+}
+
+async function loadChildCount(epic, a) {
+  const base = `${ORG}/${encodeURIComponent('VINCUE-' + epic.proj)}/_apis/wit/wiql?api-version=7.1`;
+  const post = q => fetch(base, { method: 'POST', headers: { Authorization: a, 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
+  try {
+    const [r1, r2] = await Promise.all([
+      post({ query: `SELECT [System.Id] FROM WorkItems WHERE [System.Parent] = ${epic.adoId} AND [System.WorkItemType] IN ("Feature","User Story","Bug")` }),
+      post({ query: `SELECT [System.Id] FROM WorkItems WHERE [System.Parent] = ${epic.adoId} AND [System.WorkItemType] IN ("Feature","User Story","Bug") AND [System.State] IN ("Active","In Progress","Committed","Doing")` })
+    ]);
+    if (r1.ok) { const d = await r1.json(); epic.childCount = d.workItems?.length || 0; }
+    if (r2.ok) { const d = await r2.json(); epic.hasActive = (d.workItems?.length || 0) > 0; }
+  } catch (_) {}
+}
+
+// ── Sizing & Scoring ────────────────────────────────────
+function tshirt(n) {
+  if (n === 0) return 'Undefined';
+  if (n <= 2)  return 'XS';
+  if (n <= 5)  return 'S';
+  if (n <= 12) return 'M';
+  if (n <= 25) return 'L';
+  return 'XL';
+}
+
+// Impact weighted 2x over effort reduction — higher score = higher priority
+function score(e) { return (e.y * 2) - e.x; }
+
+function posInfo(e) {
+  const hiImpact = e.y >= 0.5, loEffort = e.x < 0.5;
+  if (hiImpact && loEffort)  return { label: 'High Impact · Low Effort',  cls: 'pos-hi-lo' };
+  if (hiImpact && !loEffort) return { label: 'High Impact · High Effort', cls: 'pos-hi-hi' };
+  if (!hiImpact && loEffort) return { label: 'Low Impact · Low Effort',   cls: 'pos-lo-lo' };
+  return                            { label: 'Low Impact · High Effort',  cls: 'pos-lo-hi' };
+}
+
+// ── Render ──────────────────────────────────────────────
+function render() { renderCanvas(); renderPool(); renderRank(); }
+
+function cardHTML(e, forCanvas) {
+  const sc = 'sz-' + e.tshirt.toLowerCase();
+  const posStyle = forCanvas
+    ? `style="left:${e.x * 100}%;top:${(1 - e.y) * 100}%"`
+    : '';
+  return `<div class="epic-card" draggable="true" id="card-${e.uid}" data-uid="${e.uid}" ${posStyle}>
+    <div class="card-title">${e.title}</div>
+    <div class="card-foot">
+      <span class="badge ${sc}">${e.tshirt}</span>
+      ${e.hasActive ? '<span class="badge active-badge">Active</span>' : ''}
+      <span class="count-badge">${e.childCount} items</span>
+      <span class="proj-badge">${e.proj}</span>
+    </div>
+  </div>`;
+}
+
+function renderCanvas() {
+  const canvas = document.getElementById('canvas');
+  // Keep static elements, replace cards
+  const statics = canvas.querySelectorAll('.grid-h,.grid-v,.hint');
+  const staticHTML = Array.from(statics).map(el => el.outerHTML).join('');
+  const cards = epics.filter(e => e.placed).map(e => cardHTML(e, true)).join('');
+  canvas.innerHTML = staticHTML + cards;
+  bind();
+}
+
+function renderPool() {
+  const unplaced = epics.filter(e => !e.placed);
+  document.getElementById('pool-count').textContent = unplaced.length;
+  document.getElementById('pool').innerHTML = unplaced.length
+    ? unplaced.map(e => cardHTML(e, false)).join('')
+    : '<div class="empty">All epics placed on the canvas.</div>';
+  bind();
+}
+
+const tt = document.getElementById('tooltip');
+function showTooltip(e, epic) {
+  tt.querySelector('.tt-title').textContent = epic.title;
+  const tags = [epic.tshirt, `${epic.childCount} items`, epic.proj, ...(epic.hasActive ? ['Active'] : [])];
+  if (epic.placed) tags.push(posInfo(epic).label);
+  tt.querySelector('.tt-row').textContent = tags.join(' · ');
+  tt.classList.add('show');
+  moveTooltip(e);
+}
+function moveTooltip(e) {
+  const x = Math.min(e.clientX + 14, window.innerWidth - 256);
+  const y = Math.min(e.clientY + 14, window.innerHeight - 80);
+  tt.style.left = x + 'px'; tt.style.top = y + 'px';
+}
+function hideTooltip() { tt.classList.remove('show'); }
+
+function bind() {
+  document.querySelectorAll('.epic-card').forEach(c => {
+    const epic = epics.find(ep => ep.uid === c.dataset.uid);
+    c.addEventListener('mouseenter', e => epic && showTooltip(e, epic));
+    c.addEventListener('mousemove', moveTooltip);
+    c.addEventListener('mouseleave', hideTooltip);
+    c.addEventListener('dragstart', e => {
+      hideTooltip();
+      dragging = c.dataset.uid;
+      const r = c.getBoundingClientRect();
+      dragOffset.x = e.clientX - (r.left + r.width / 2);
+      dragOffset.y = e.clientY - (r.top + r.height / 2);
+      setTimeout(() => c.classList.add('dragging'), 0);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    c.addEventListener('dragend', () => { c.classList.remove('dragging'); dragging = null; });
+  });
+}
+
+// ── Drag & Drop ─────────────────────────────────────────
+function onOver(e) { e.preventDefault(); e.currentTarget.classList.add('over'); }
+function onLeave(e) { e.currentTarget.classList.remove('over'); }
+
+function onDropCanvas(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('over');
+  if (!dragging) return;
+  const epic = epics.find(ep => ep.uid === dragging);
+  if (!epic) return;
+  const rect = document.getElementById('canvas').getBoundingClientRect();
+  epic.x = Math.max(0.03, Math.min(0.97, (e.clientX - dragOffset.x - rect.left) / rect.width));
+  epic.y = Math.max(0.03, Math.min(0.97, 1 - (e.clientY - dragOffset.y - rect.top) / rect.height));
+  epic.placed = true;
+  render();
+}
+
+function onDropPool(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('over');
+  if (!dragging) return;
+  const epic = epics.find(ep => ep.uid === dragging);
+  if (epic) { epic.placed = false; }
+  render();
+}
+
+// ── Stack Rank ──────────────────────────────────────────
+function renderRank() {
+  const placed = epics.filter(e => e.placed).sort((a, b) => score(b) - score(a));
+  const unplaced = epics.filter(e => !e.placed);
+
+  if (!placed.length && !unplaced.length) return;
+
+  let n = 1;
+  const rows = [
+    ...placed.map(e => {
+      const num = n++;
+      const { label, cls } = posInfo(e);
+      const sc = 'sz-' + e.tshirt.toLowerCase();
+      return `<div class="rank-item">
+        <div class="rank-num ${num <= 3 ? 'hi' : ''}">${num}</div>
+        <div class="rank-info">
+          <div class="rank-name" title="${e.title}">${e.title}</div>
+          <div class="rank-badges">
+            <span class="pos-tag ${cls}">${label}</span>
+            <span class="badge ${sc}">${e.tshirt}</span>
+            ${e.hasActive ? '<span class="badge active-badge">Active</span>' : ''}
+          </div>
+        </div>
+      </div>`;
+    }),
+    ...unplaced.map(e => {
+      const sc = 'sz-' + e.tshirt.toLowerCase();
+      return `<div class="rank-item" style="opacity:0.45">
+        <div class="rank-num">—</div>
+        <div class="rank-info">
+          <div class="rank-name" title="${e.title}">${e.title}</div>
+          <div class="rank-badges">
+            <span class="pos-tag pos-none">Unplaced</span>
+            <span class="badge ${sc}">${e.tshirt}</span>
+            ${e.hasActive ? '<span class="badge active-badge">Active</span>' : ''}
+          </div>
+        </div>
+      </div>`;
+    })
+  ];
+
+  document.getElementById('rank-list').innerHTML = rows.join('') ||
+    '<div class="empty" style="padding:24px">Place epics to build the rank.</div>';
+}
+
+// ── Export / Save ───────────────────────────────────────
+function copyRanking() {
+  const placed = epics.filter(e => e.placed).sort((a, b) => score(b) - score(a));
+  if (!placed.length) { alert('No epics placed yet.'); return; }
+  const date = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  let out = `VINCUE Epic Stack Rank — ${date}\n\n`;
+  placed.forEach((e, i) => {
+    const { label } = posInfo(e);
+    out += `${i + 1}. [${e.tshirt}] ${e.title}\n   ${label} · ${e.childCount} items · ${e.proj}${e.hasActive ? ' · Active' : ''}\n`;
+  });
+  const unplaced = epics.filter(e => !e.placed);
+  if (unplaced.length) { out += `\nUnplaced:\n`; unplaced.forEach(e => { out += `  · ${e.title}\n`; }); }
+  navigator.clipboard.writeText(out)
+    .then(() => setStatus('Stack rank copied to clipboard.'))
+    .catch(() => { const t = document.createElement('textarea'); t.value = out; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); setStatus('Stack rank copied to clipboard.'); });
+}
+
+function saveSession() {
+  const state = {};
+  epics.filter(e => e.placed).forEach(e => { state[e.uid] = { x: e.x, y: e.y }; });
+  localStorage.setItem('epic_canvas', JSON.stringify(state));
+  setStatus('Session saved — positions will restore on next load.');
+}
+
+// Init
+const saved = localStorage.getItem('vincue_pat');
+if (saved) document.getElementById('pat-input').value = saved;
+</script>
+</body>
+</html>
