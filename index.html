@@ -110,6 +110,8 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 .pos-hi-hi { background: rgba(99,102,241,0.12); color: var(--accent); }
 .pos-lo-lo { background: rgba(107,114,128,0.12); color: var(--dim); }
 .pos-lo-hi { background: rgba(220,38,38,0.12); color: var(--red); }
+.pos-mid-lo { background: rgba(2,132,199,0.12); color: var(--sky); }
+.pos-mid-hi { background: rgba(99,102,241,0.12); color: var(--accent); }
 .pos-none { background: rgba(107,114,128,0.08); color: var(--dim); }
 .sb-foot { padding: 10px 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
 
@@ -347,11 +349,13 @@ function tshirt(n) {
 function score(e) { return (e.y * 2) - e.x; }
 
 function posInfo(e) {
-  const hiImpact = e.y >= 0.5, loEffort = e.x < 0.5;
+  const hiImpact = e.y >= 0.67, loImpact = e.y < 0.33, loEffort = e.x < 0.5;
   if (hiImpact && loEffort)  return { label: 'High Impact · Low Effort',  cls: 'pos-hi-lo' };
   if (hiImpact && !loEffort) return { label: 'High Impact · High Effort', cls: 'pos-hi-hi' };
-  if (!hiImpact && loEffort) return { label: 'Low Impact · Low Effort',   cls: 'pos-lo-lo' };
-  return                            { label: 'Low Impact · High Effort',  cls: 'pos-lo-hi' };
+  if (loImpact && loEffort)  return { label: 'Low Impact · Low Effort',   cls: 'pos-lo-lo' };
+  if (loImpact && !loEffort) return { label: 'Low Impact · High Effort',  cls: 'pos-lo-hi' };
+  if (loEffort)              return { label: 'Moderate Impact · Low Effort',  cls: 'pos-mid-lo' };
+  return                            { label: 'Moderate Impact · High Effort', cls: 'pos-mid-hi' };
 }
 
 // ── Render ──────────────────────────────────────────────
