@@ -148,6 +148,8 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 <div id="cfg">
   <label>ADO PAT:</label>
   <input type="password" id="pat-input" placeholder="Personal Access Token" />
+  <label style="margin-left:10px">Worker URL:</label>
+  <input type="text" id="proxy-input" placeholder="https://your-worker.workers.dev" style="width:260px;font-family:monospace" />
   <button class="btn btn-ghost" onclick="loadEpics()">Apply & Reload</button>
 </div>
 
@@ -212,9 +214,8 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 </div>
 
 <script>
-const DEFAULT_PAT = 'CVJUkWKCT6lJ2l7fEDcPDlCaZaR6KXHWlFv6pMj2a1a7pW6BJMytJQQJ99CDACAAAAAV3llrAAASAZDO4Wb3';
+const DEFAULT_PAT = '4DMnunjKEKHb4w6GcFiYuC7T6rHdhhwA9asnl0OKAlMRG1BKOGUpJQQJ99CFACAAAAAV3llrAAASAZDO2zrG';
 const PROJECTS = ['VINCUE-Desktop', 'VINCUE-Mobile'];
-const ORG = 'https://dev.azure.com/vincue';
 
 let epics = [];
 let dragging = null;
@@ -224,14 +225,26 @@ let dragOffset = { x: 0, y: 0 };
 function toggleCfg() {
   const el = document.getElementById('cfg');
   el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
-  if (el.style.display === 'flex') document.getElementById('pat-input').value = getPAT();
+  if (el.style.display === 'flex') {
+    document.getElementById('pat-input').value = getPAT();
+    document.getElementById('proxy-input').value = getProxyURL();
+  }
 }
 function getPAT() {
   const v = document.getElementById('pat-input').value.trim();
   if (v) { localStorage.setItem('vincue_pat', v); return v; }
   return localStorage.getItem('vincue_pat') || DEFAULT_PAT;
 }
-function auth(pat) { return 'Basic ' + btoa(':' + pat); }
+function getProxyURL() {
+  const v = document.getElementById('proxy-input').value.trim();
+  if (v) { localStorage.setItem('vincue_proxy', v); return v; }
+  return localStorage.getItem('vincue_proxy') || '';
+}
+function getORG() {
+  const proxy = getProxyURL();
+  if (!proxy) throw new Error('No Worker URL set — open Config and paste your Cloudflare Worker URL.');
+  return proxy.replace(/\/$/, '') + '/vincue';
+}
 function setStatus(msg, spin) {
   document.getElementById('status').innerHTML = spin
     ? `<span class="spinner"></span>&nbsp;${msg}` : msg;
@@ -241,20 +254,19 @@ function setStatus(msg, spin) {
 async function loadEpics() {
   const btn = document.getElementById('load-btn');
   btn.disabled = true; btn.textContent = 'Loading…';
-  const a = auth(getPAT());
   epics = [];
 
   try {
     for (const proj of PROJECTS) {
       setStatus(`Fetching epics from ${proj}…`, true);
-      const ids = await getEpicIds(proj, a);
+      const ids = await getEpicIds(proj);
       if (!ids.length) continue;
-      const batch = await getEpicDetails(proj, ids, a);
+      const batch = await getEpicDetails(proj, ids);
       epics.push(...batch);
     }
 
     setStatus(`Calculating sizes for ${epics.length} epics…`, true);
-    await Promise.all(epics.map(e => loadChildCount(e, a)));
+    await Promise.all(epics.map(e => loadChildCount(e)));
     epics.forEach(e => { e.tshirt = tshirt(e.childCount); e.placed = false; e.x = 0.5; e.y = 0.5; });
 
     // Active epics: scatter into upper-left area
@@ -283,18 +295,18 @@ async function loadEpics() {
   btn.disabled = false; btn.textContent = 'Reload Epics';
 }
 
-async function getEpicIds(proj, a) {
+async function getEpicIds(proj) {
   const wiql = { query: `SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = "${proj}" AND [System.WorkItemType] = "Epic" AND [System.State] NOT IN ("Closed","Removed") ORDER BY [System.Title]` };
-  const res = await fetch(`${ORG}/${encodeURIComponent(proj)}/_apis/wit/wiql?api-version=7.1`, {
-    method: 'POST', headers: { Authorization: a, 'Content-Type': 'application/json' }, body: JSON.stringify(wiql)
+  const res = await fetch(`${getORG()}/${encodeURIComponent(proj)}/_apis/wit/wiql?api-version=7.1`, {
+    method: 'POST', headers: { 'X-ADO-PAT': getPAT(), 'Content-Type': 'application/json' }, body: JSON.stringify(wiql)
   });
   if (!res.ok) throw new Error(`${proj}: ${res.status} ${res.statusText}`);
   return (await res.json()).workItems.map(w => w.id);
 }
 
-async function getEpicDetails(proj, ids, a) {
-  const res = await fetch(`${ORG}/${encodeURIComponent(proj)}/_apis/wit/workitemsbatch?api-version=7.1`, {
-    method: 'POST', headers: { Authorization: a, 'Content-Type': 'application/json' },
+async function getEpicDetails(proj, ids) {
+  const res = await fetch(`${getORG()}/${encodeURIComponent(proj)}/_apis/wit/workitemsbatch?api-version=7.1`, {
+    method: 'POST', headers: { 'X-ADO-PAT': getPAT(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids: ids.slice(0, 200), fields: ['System.Id','System.Title'] })
   });
   if (!res.ok) throw new Error(`Batch ${proj}: ${res.status}`);
@@ -308,9 +320,9 @@ async function getEpicDetails(proj, ids, a) {
   }));
 }
 
-async function loadChildCount(epic, a) {
-  const base = `${ORG}/${encodeURIComponent('VINCUE-' + epic.proj)}/_apis/wit/wiql?api-version=7.1`;
-  const post = q => fetch(base, { method: 'POST', headers: { Authorization: a, 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
+async function loadChildCount(epic) {
+  const base = `${getORG()}/${encodeURIComponent('VINCUE-' + epic.proj)}/_apis/wit/wiql?api-version=7.1`;
+  const post = q => fetch(base, { method: 'POST', headers: { 'X-ADO-PAT': getPAT(), 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
   try {
     const [r1, r2] = await Promise.all([
       post({ query: `SELECT [System.Id] FROM WorkItems WHERE [System.Parent] = ${epic.adoId} AND [System.WorkItemType] IN ("Feature","User Story","Bug")` }),
@@ -356,7 +368,6 @@ function cardHTML(e, forCanvas) {
       <span class="badge ${sc}">${e.tshirt}</span>
       ${e.hasActive ? '<span class="badge active-badge">Active</span>' : ''}
       <span class="count-badge">${e.childCount} items</span>
-      <span class="proj-badge">${e.proj}</span>
     </div>
   </div>`;
 }
@@ -511,8 +522,10 @@ function saveSession() {
 }
 
 // Init
-const saved = localStorage.getItem('vincue_pat');
-if (saved) document.getElementById('pat-input').value = saved;
+const savedPat = localStorage.getItem('vincue_pat');
+if (savedPat) document.getElementById('pat-input').value = savedPat;
+const savedProxy = localStorage.getItem('vincue_proxy');
+if (savedProxy) document.getElementById('proxy-input').value = savedProxy;
 </script>
 </body>
 </html>
