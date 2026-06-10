@@ -297,16 +297,16 @@ async function loadEpics() {
 
 async function getEpicIds(proj) {
   const wiql = { query: `SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = "${proj}" AND [System.WorkItemType] = "Epic" AND [System.State] NOT IN ("Closed","Removed") ORDER BY [System.Title]` };
-  const res = await fetch(`${getORG()}/${encodeURIComponent(proj)}/_apis/wit/wiql?api-version=7.1`, {
-    method: 'POST', headers: { 'X-ADO-PAT': getPAT(), 'Content-Type': 'application/json' }, body: JSON.stringify(wiql)
+  const res = await fetch(`${getORG()}/${encodeURIComponent(proj)}/_apis/wit/wiql?api-version=7.1&pat=${encodeURIComponent(getPAT())}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(wiql)
   });
   if (!res.ok) throw new Error(`${proj}: ${res.status} ${res.statusText}`);
   return (await res.json()).workItems.map(w => w.id);
 }
 
 async function getEpicDetails(proj, ids) {
-  const res = await fetch(`${getORG()}/${encodeURIComponent(proj)}/_apis/wit/workitemsbatch?api-version=7.1`, {
-    method: 'POST', headers: { 'X-ADO-PAT': getPAT(), 'Content-Type': 'application/json' },
+  const res = await fetch(`${getORG()}/${encodeURIComponent(proj)}/_apis/wit/workitemsbatch?api-version=7.1&pat=${encodeURIComponent(getPAT())}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids: ids.slice(0, 200), fields: ['System.Id','System.Title'] })
   });
   if (!res.ok) throw new Error(`Batch ${proj}: ${res.status}`);
@@ -321,8 +321,8 @@ async function getEpicDetails(proj, ids) {
 }
 
 async function loadChildCount(epic) {
-  const base = `${getORG()}/${encodeURIComponent('VINCUE-' + epic.proj)}/_apis/wit/wiql?api-version=7.1`;
-  const post = q => fetch(base, { method: 'POST', headers: { 'X-ADO-PAT': getPAT(), 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
+  const base = `${getORG()}/${encodeURIComponent('VINCUE-' + epic.proj)}/_apis/wit/wiql?api-version=7.1&pat=${encodeURIComponent(getPAT())}`;
+  const post = q => fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(q) });
   try {
     const [r1, r2] = await Promise.all([
       post({ query: `SELECT [System.Id] FROM WorkItems WHERE [System.Parent] = ${epic.adoId} AND [System.WorkItemType] IN ("Feature","User Story","Bug")` }),
