@@ -93,8 +93,12 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 .proj-badge { font-size: 9px; color: var(--dim); }
 .count-badge { font-size: 9px; color: var(--dim); }
 
+/* Resize handle */
+.resize-handle { width: 5px; background: transparent; cursor: col-resize; flex-shrink: 0; transition: background 0.15s; }
+.resize-handle:hover, .resize-handle.dragging { background: var(--accent); }
+
 /* Sidebar */
-.sidebar { width: 256px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+.sidebar { width: 256px; min-width: 160px; max-width: 520px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
 .sb-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .sb-title { font-size: 13px; font-weight: 600; }
 .sb-sub { font-size: 11px; color: var(--dim); margin-top: 2px; }
@@ -188,7 +192,8 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
     </div>
   </div>
 
-  <div class="sidebar">
+  <div class="resize-handle" id="resize-handle"></div>
+  <div class="sidebar" id="sidebar">
     <div class="sb-head">
       <div class="sb-title">Stack Rank</div>
       <div class="sb-sub">Ranked by impact, adjusted for effort</div>
@@ -524,6 +529,27 @@ function saveSession() {
   localStorage.setItem('epic_canvas', JSON.stringify(state));
   setStatus('Session saved — positions will restore on next load.');
 }
+
+// ── Sidebar Resize ──────────────────────────────────────
+const resizeHandle = document.getElementById('resize-handle');
+const sidebar = document.getElementById('sidebar');
+let resizing = false;
+
+resizeHandle.addEventListener('mousedown', e => {
+  resizing = true;
+  resizeHandle.classList.add('dragging');
+  e.preventDefault();
+});
+document.addEventListener('mousemove', e => {
+  if (!resizing) return;
+  const bodyRect = document.querySelector('.body').getBoundingClientRect();
+  const newWidth = Math.max(160, Math.min(520, bodyRect.right - e.clientX));
+  sidebar.style.width = newWidth + 'px';
+});
+document.addEventListener('mouseup', () => {
+  resizing = false;
+  resizeHandle.classList.remove('dragging');
+});
 
 // Init
 const savedPat = localStorage.getItem('vincue_pat');
