@@ -145,11 +145,24 @@ header { background: var(--surface); border-bottom: 1px solid var(--border); pad
 
 <header>
   <div class="logo">Epic Prioritizer <span>VINCUE Investment Alignment</span></div>
+  <button class="btn btn-ghost" onclick="toggleLegend()">Legend</button>
   <button class="btn btn-ghost" onclick="toggleCfg()">⚙ Config</button>
   <button class="btn btn-ghost" onclick="saveSession()">Save Session</button>
   <button class="btn btn-ghost" onclick="copyRanking()">Copy Ranking</button>
   <button class="btn btn-primary" id="load-btn" onclick="loadEpics()">Load Epics</button>
 </header>
+
+<div id="legend" style="display:none; background:var(--surface); border-bottom:1px solid var(--border); padding:8px 20px; gap:24px; flex-shrink:0; align-items:center; flex-wrap:wrap;">
+  <span style="font-size:11px; font-weight:600; color:var(--dim);">T-SHIRT SIZE</span>
+  <span style="font-size:11px; color:var(--dim)"><span class="badge sz-undefined">Undefined</span> &nbsp;0 child items</span>
+  <span style="font-size:11px; color:var(--dim)"><span class="badge sz-xs">XS</span> &nbsp;1–2 items</span>
+  <span style="font-size:11px; color:var(--dim)"><span class="badge sz-s">S</span> &nbsp;3–5 items</span>
+  <span style="font-size:11px; color:var(--dim)"><span class="badge sz-m">M</span> &nbsp;6–12 items</span>
+  <span style="font-size:11px; color:var(--dim)"><span class="badge sz-l">L</span> &nbsp;13–25 items</span>
+  <span style="font-size:11px; color:var(--dim)"><span class="badge sz-xl">XL</span> &nbsp;26+ items</span>
+  <span style="font-size:11px; font-weight:600; color:var(--dim); margin-left:12px;">ACTIVE</span>
+  <span style="font-size:11px; color:var(--dim)"><span class="badge active-badge">Active</span> &nbsp;Has items in progress</span>
+</div>
 
 <div id="cfg">
   <label>ADO PAT:</label>
@@ -229,6 +242,10 @@ let dragging = null;
 let dragOffset = { x: 0, y: 0 };
 
 // ── Config ──────────────────────────────────────────────
+function toggleLegend() {
+  const el = document.getElementById('legend');
+  el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
+}
 function toggleCfg() {
   const el = document.getElementById('cfg');
   el.style.display = el.style.display === 'flex' ? 'none' : 'flex';
